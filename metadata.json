@@ -1,0 +1,6 @@
+{
+  "name": "静序念经",
+  "description": "轻量化治愈系电子木鱼工具，提供木鱼敲击、功德统计、自定义祈福、皮肤与音效切换、自然白噪音等静心解压功能。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

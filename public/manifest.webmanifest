@@ -1,0 +1,26 @@
+{
+  "name": "静序念经",
+  "short_name": "静序念经",
+  "description": "轻量化治愈系电子木鱼工具，静心解压积攒功德。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09090B",
+  "theme_color": "#09090B",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

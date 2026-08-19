@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <!--
+      Fallback foreground for legacy devices:
+      Android < 8.0 可能不使用 adaptive-icon XML，
+      直接用纯色占位（真实位图由各密度下的 @mipmap/ic_launcher_foreground.png 提供）
+    -->
+    <path
+        android:fillColor="#09090B"
+        android:pathData="M0,0h108v108h-108z" />
+</vector>
