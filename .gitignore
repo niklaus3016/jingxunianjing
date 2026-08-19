@@ -59,6 +59,12 @@ captures/
 # === Kotlin / Java ===
 *.class
 
+# === 签名密钥与口令文件 ===
+*.keystore
+*.jks
+*.p12
+keystore.properties
+
 # === Bun lock (optional; package-lock is primary) ===
 # bun.lock 可以保留，按需取消下一行注释
 # bun.lock
