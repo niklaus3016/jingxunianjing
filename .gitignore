@@ -65,6 +65,9 @@ captures/
 *.p12
 keystore.properties
 
+# === 临时对照参考目录（不入库） ===
+qitaapp/
+
 # === Bun lock (optional; package-lock is primary) ===
 # bun.lock 可以保留，按需取消下一行注释
 # bun.lock
