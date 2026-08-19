@@ -40,32 +40,33 @@ jobs:
       run: chmod +x ./android/gradlew
 
     - name: Create keystore file from GitHub Secrets
-      if: ${{ secrets.KEYSTORE_BASE64 != '' }}
       run: |
-        cd android
         if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-          echo "Error: KEYSTORE_BASE64 secret is not set"
-          exit 1
+          echo "ℹ️  KEYSTORE_BASE64 secret 未配置 — 跳过 keystore 生成，只会构建 Debug APK"
+          exit 0
         fi
+        cd android
         if [ -f "my-release-key.keystore" ]; then
           rm -f my-release-key.keystore
         fi
         echo "Creating keystore file from GitHub Secrets"
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release-key.keystore
         echo "=== Listing aliases in keystore ==="
-        keytool -list -keystore my-release-key.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}"
+        keytool -list -keystore my-release-key.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" || echo "(warn: keytool -list 失败，但继续构建)"
         echo "=== Keystore file details ==="
         ls -la my-release-key.keystore
         file my-release-key.keystore
 
     - name: Extract SHA1 from keystore
-      if: ${{ secrets.KEYSTORE_BASE64 != '' }}
       run: |
+        if [ ! -f android/my-release-key.keystore ]; then
+          echo "ℹ️  未检测到 my-release-key.keystore — 跳过证书指纹提取"
+          exit 0
+        fi
         cd android
-        echo "Run # 将 base64 编码的 keystore 还原为文件"
         echo "# 将 base64 编码的 keystore 还原为文件"
         echo ""
-        full_output=$(keytool -list -v -keystore my-release-key.keystore -alias jingxunianjing -storepass "${{ secrets.KEYSTORE_PASSWORD }}")
+        full_output=$(keytool -list -v -keystore my-release-key.keystore -alias jingxunianjing -storepass "${{ secrets.KEYSTORE_PASSWORD }}" || true)
         
         sha1_with_colons=$(echo "$full_output" | grep -i "sha1:" | head -1 | sed 's/.*sha1:\s*//i' | sed 's/\s*$//')
         sha256_with_colons=$(echo "$full_output" | grep -i "sha256:" | head -1 | sed 's/.*sha256:\s*//i' | sed 's/\s*$//')
@@ -100,6 +101,10 @@ jobs:
     - name: Build Android Release APK
       run: |
         cd android
+        if [ ! -f "my-release-key.keystore" ]; then
+          echo "ℹ️  未检测到 my-release-key.keystore — 跳过 Release APK 构建，仅构建 Debug APK"
+          exit 0
+        fi
         echo "=== Building Release APK ==="
         ./gradlew clean
         ./gradlew assembleRelease --no-build-cache --no-daemon -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" -Pandroid.injected.signing.key.alias=jingxunianjing -Pandroid.injected.signing.key.password="${{ secrets.KEYSTORE_PASSWORD }}"
@@ -118,7 +123,7 @@ jobs:
         retention-days: 30
     
     - name: Upload Release APK
-      if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+      if: hashFiles('android/app/build/outputs/apk/release/app-release.apk') != ''
       uses: actions/upload-artifact@v4
       with:
         name: app-release
