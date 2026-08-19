@@ -100,15 +100,20 @@ jobs:
 
     - name: Build Android Release APK
       run: |
-        cd android
-        if [ ! -f "my-release-key.keystore" ]; then
-          echo "ℹ️  未检测到 my-release-key.keystore — 跳过 Release APK 构建，仅构建 Debug APK"
+        # 只有当 KEYSTORE_BASE64 真正配置好时才运行 Release 签名构建
+        if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+          echo "ℹ️  KEYSTORE_BASE64 未配置 → 跳过 Release APK 构建 (不启动 Gradle 避免 AGP 校验 storeFile 报错)"
           exit 0
         fi
+        cd android
         echo "=== Building Release APK ==="
         ./gradlew clean
-        ./gradlew assembleRelease --no-build-cache --no-daemon -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" -Pandroid.injected.signing.key.alias=jingxunianjing -Pandroid.injected.signing.key.password="${{ secrets.KEYSTORE_PASSWORD }}"
-        ls -la app/build/outputs/apk/release/
+        ./gradlew assembleRelease --no-build-cache --no-daemon \
+          -Pandroid.injected.signing.store.file=my-release-key.keystore \
+          -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+          -Pandroid.injected.signing.key.alias=jingxunianjing \
+          -Pandroid.injected.signing.key.password="${{ secrets.KEYSTORE_PASSWORD }}"
+        ls -la app/build/outputs/apk/release/ 2>/dev/null || true
 
     - name: Build Android Debug APK
       run: |
