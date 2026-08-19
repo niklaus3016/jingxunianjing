@@ -132,10 +132,17 @@ jobs:
       if: steps.create_keystore.outputs.ready == 'true'
       run: |
         cd android
+        # 关键：传给 AGP 的 store.file 必须用【绝对路径】
+        # 之前传相对路径 `my-release-key.keystore` 时，AGP 会按 :app 模块目录(android/app/)解析
+        # → 期望 android/app/my-release-key.keystore（不存在！）
+        # 但 keystore 实际在 android/my-release-key.keystore（与 build.gradle 的 file('../my-release-key.keystore') 一致）
+        KS_ABS="$PWD/my-release-key.keystore"
         echo "=== Building Release APK ==="
+        echo "    keystore absolute path = $KS_ABS"
+        ls -la "$KS_ABS"
         ./gradlew clean
         ./gradlew assembleRelease --no-build-cache --no-daemon \
-          -Pandroid.injected.signing.store.file=my-release-key.keystore \
+          -Pandroid.injected.signing.store.file="$KS_ABS" \
           -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
           -Pandroid.injected.signing.key.alias=jingxunianjing \
           -Pandroid.injected.signing.key.password="${{ secrets.KEYSTORE_PASSWORD }}"
