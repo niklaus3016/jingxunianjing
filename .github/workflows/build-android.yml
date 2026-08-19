@@ -40,22 +40,52 @@ jobs:
       run: chmod +x ./android/gradlew
 
     - name: Create keystore file from GitHub Secrets
+      id: create_keystore
       run: |
-        if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-          echo "ℹ️  KEYSTORE_BASE64 secret 未配置 — 跳过 keystore 生成，只会构建 Debug APK"
-          exit 0
+        set +e  # 暂时关闭严格错误，让我们做合法性校验
+        KS="android/my-release-key.keystore"
+        PASS="${{ secrets.KEYSTORE_PASSWORD }}"
+        READY="false"
+        # 先清理上次残留
+        rm -f "$KS"
+        # 尝试 base64 解码（GitHub Actions 会自动把 secrets 替换成真实值写入脚本）
+        B64="${{ secrets.KEYSTORE_BASE64 }}"
+        if [ -n "$B64" ]; then
+          echo "$B64" | base64 -d > "$KS" 2>/dev/null
         fi
-        cd android
-        if [ -f "my-release-key.keystore" ]; then
-          rm -f my-release-key.keystore
+        # 合法性检测：文件大小 > 1KB 且 keytool -list 能通过密码打开 + alias 存在
+        if [ -f "$KS" ]; then
+          SIZE=$(stat -c%s "$KS" 2>/dev/null || echo 0)
+          if [ "$SIZE" -gt 1000 ]; then
+            echo "检测到 keystore 候选文件（大小 ${SIZE}B），尝试用密码验证..."
+            keytool -list -keystore "$KS" -storepass "$PASS" -alias jingxunianjing >/dev/null 2>&1
+            RC=$?
+            if [ "$RC" -eq 0 ]; then
+              echo "✅ keystore 合法（密码正确，alias=jingxunianjing 存在）→ 允许 Release 构建"
+              READY="true"
+              # 展示别名信息 & 文件大小（便于排障）
+              echo "=== Keystore file details ==="
+              ls -la "$KS"
+              file "$KS"
+              echo "=== Listing aliases in keystore ==="
+              keytool -list -keystore "$KS" -storepass "$PASS" 2>/dev/null || true
+            else
+              echo "⚠️  检测到 keystore 但密码错误或 alias 不存在（keytool 返回 $RC）→ 跳过 Release 构建（仅 Debug）"
+            fi
+          else
+            echo "⚠️  生成的 keystore 过小（${SIZE}B），判定为无效（可能 KEYSTORE_BASE64 不是合法的 base64 编码 JKS）→ 跳过 Release 构建（仅 Debug）"
+          fi
+        else
+          echo "ℹ️  未检测到 my-release-key.keystore（KEYSTORE_BASE64 未配置或解码失败）→ 跳过 Release 构建（仅 Debug）"
         fi
-        echo "Creating keystore file from GitHub Secrets"
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release-key.keystore
-        echo "=== Listing aliases in keystore ==="
-        keytool -list -keystore my-release-key.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" || echo "(warn: keytool -list 失败，但继续构建)"
-        echo "=== Keystore file details ==="
-        ls -la my-release-key.keystore
-        file my-release-key.keystore
+        # 若无效就删掉，避免 build.gradle 里的 if(keystoreFile.exists()) 错误挂 signingConfig
+        if [ "$READY" != "true" ]; then
+          rm -f "$KS"
+        fi
+        # 输出 step output，给后续 step 做 if 调度（完全绕开 secrets mask 带来的判空失效）
+        echo "ready=$READY" >> "$GITHUB_OUTPUT"
+        echo "GITHUB_OUTPUT 设置 ready=$READY"
+        set -e
 
     - name: Extract SHA1 from keystore
       run: |
@@ -99,12 +129,8 @@ jobs:
         echo "============================="
 
     - name: Build Android Release APK
+      if: steps.create_keystore.outputs.ready == 'true'
       run: |
-        # 只有当 KEYSTORE_BASE64 真正配置好时才运行 Release 签名构建
-        if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-          echo "ℹ️  KEYSTORE_BASE64 未配置 → 跳过 Release APK 构建 (不启动 Gradle 避免 AGP 校验 storeFile 报错)"
-          exit 0
-        fi
         cd android
         echo "=== Building Release APK ==="
         ./gradlew clean
