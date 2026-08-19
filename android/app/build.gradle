@@ -51,16 +51,19 @@ android {
         abortOnError false
     }
 
-    // 添加签名配置
-    signingConfigs {
-        release {
-            storeFile file('../my-release-key.keystore')
-            storePassword System.getenv('KEYSTORE_PASSWORD') ?: '123456'
-            keyAlias 'jingxunianjing'
-            keyPassword System.getenv('KEYSTORE_PASSWORD') ?: '123456'
-            v1SigningEnabled true
-            v2SigningEnabled true
-            storeType 'JKS'
+    // 添加签名配置（仅当 keystore 文件实际存在时才注入，避免 AGP 配置阶段因文件不存在直接报错）
+    def keystoreFile = file('../my-release-key.keystore')
+    if (keystoreFile.exists()) {
+        signingConfigs {
+            release {
+                storeFile keystoreFile
+                storePassword System.getenv('KEYSTORE_PASSWORD') ?: '123456'
+                keyAlias 'jingxunianjing'
+                keyPassword System.getenv('KEYSTORE_PASSWORD') ?: '123456'
+                v1SigningEnabled true
+                v2SigningEnabled true
+                storeType 'JKS'
+            }
         }
     }
 
@@ -68,7 +71,10 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            // 仅当 keystore 存在 & release signingConfig 配置好时才启用签名
+            if (keystoreFile.exists() && signingConfigs.hasProperty('release')) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
